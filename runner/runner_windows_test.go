@@ -11,16 +11,8 @@ import (
 )
 
 const (
-	testFolder = "../testdata"
+	testFolder = "testdata"
 )
-
-func getRCWithTimeout(to *time.Duration) *TestRunConfig {
-	return &TestRunConfig{
-		Timeout:            to,
-		EnableAll:          true,
-		SplitCmdsByNewline: false,
-	}
-}
 
 func TestRunCommands_Powershell(t *testing.T) {
 	launcher, err := getLauncher("powershell")

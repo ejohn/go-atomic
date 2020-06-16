@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -206,7 +207,7 @@ func TestBuildTest(t *testing.T) {
 }
 
 func TestProcessYamlFolder(t *testing.T) {
-	ar := Runner{AtomicsFolder: "../testdata/T9999"}
+	ar := Runner{AtomicsFolder: filepath.Join(testFolder, "T9999")}
 	tests := ar.processYAMLFolder()
 	assert.Equal(t, 1, len(tests))
 	assert.NotNil(t, tests[0].Path)

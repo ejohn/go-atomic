@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	testFolder = "../testdata"
+	testFolder = "testdata"
 )
 
 func getRCWithTimeout(to *time.Duration) *TestRunConfig {
