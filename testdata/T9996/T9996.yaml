@@ -1,0 +1,14 @@
+---
+attack_technique: T9996
+display_name: TestData
+
+atomic_tests:
+  - name: Test1
+    description: |
+      Test without executor
+    supported_platforms:
+      - macos
+    executor:
+      name: manual
+      steps: do nothing
+

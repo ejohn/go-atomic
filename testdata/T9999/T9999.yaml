@@ -1,0 +1,53 @@
+---
+attack_technique: T9999
+display_name: TestData
+
+atomic_tests:
+  - name: Test1
+    description: |
+      Test Linux & Mac
+    supported_platforms:
+      - macos
+      - linux
+    input_arguments:
+      file_name:
+        description: filename
+        type: Path
+        default: PathToAtomicsFolder/src/test.txt
+
+    executor:
+      name: command_prompt
+      elevation_required: false
+      command: |
+        cat ${file_name}
+
+  - name: Test2
+    description: |
+      Test Windows
+    supported_platforms:
+      - windows
+    input_arguments:
+      file_name:
+        description: filename
+        type: Path
+        default: PathToAtomicsFolder/src/test.txt
+    executor:
+      name: powershell
+      elevation_required: false
+      command: |
+        cat ${file_name}
+        cat ${file_name}
+
+  - name: Test3
+    description: |
+      Test without executor
+    supported_platforms:
+      - macos
+  - name: Test4
+    description: |
+      Test without executor
+    supported_platforms:
+      - macos
+    executor:
+      name: manual
+      steps: do nothing
