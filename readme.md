@@ -45,7 +45,7 @@ Usage of go-atomic:
 ### List all tests
 `go-atomic -path atomic-red-team/atomics/ | jq .Name`
 
-### Filter test with technique id and name
+### Filter tests with technique id and name
 `go-atomic -path atomic-red-team/atomics/ -tech T1082 -name "Hostname Discovery"
 `
 
