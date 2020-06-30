@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -277,7 +278,6 @@ func processArguments(arguments args) (map[string]string, error) {
 
 func getRC(f *options) *runner.TestRunConfig {
 	rc := runner.TestRunConfig{
-		Timeout:            f.parsedTimeout,
 		EnableCheckPreReq:  f.runCheckPreReq,
 		EnableTest:         f.runExecutor,
 		EnableCleanup:      f.runCleanup,
@@ -304,10 +304,18 @@ func runTest(ar *runner.Runner, at *art.Test, testArguments map[string]string, o
 		fmt.Fprintf(os.Stderr, "no dependencies for test %s:%s", at.TechniqueID, at.Name)
 		return 1
 	}
+
 	rc := getRC(options)
+	var cancel context.CancelFunc
+	ctx := context.Background()
+	if options.parsedTimeout != nil {
+		ctx, cancel = context.WithTimeout(ctx, *options.parsedTimeout)
+		defer cancel()
+	}
+
 	if options.isRun {
 		// error is ignored here since the error message is also part of the result struct
-		atr, err := ar.RunTest(at, testArguments, rc)
+		atr, err := ar.RunTest(ctx, at, testArguments, rc)
 		if options.debug {
 			logger.Printf("%s\n", err)
 		}

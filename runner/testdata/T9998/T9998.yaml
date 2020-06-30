@@ -51,6 +51,7 @@ atomic_tests:
           exit 4
 
   - name: Test Sleep
+    auto_generated_guid: 25A5E901-A6E7-4DFD-A69C-38E438DBF098
     description: |
       Test Linux & Mac
     supported_platforms:

@@ -15,7 +15,7 @@ import (
 	"github.com/ejohn/go-atomic/art"
 )
 
-func runCommands(launcher []string, commands string, timeout *time.Duration, splitCmds bool) ([]CmdRunInfo, error) {
+func runCommands(ctx context.Context, launcher []string, commands string, splitCmds bool) ([]CmdRunInfo, error) {
 	if commands == "" {
 		return nil, fmt.Errorf("no commands provided")
 	}
@@ -23,12 +23,6 @@ func runCommands(launcher []string, commands string, timeout *time.Duration, spl
 	var cri []CmdRunInfo
 	var cmdErr error
 
-	ctx := context.Background()
-	if timeout != nil {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, *timeout)
-		defer cancel()
-	}
 	if splitCmds {
 		commandLines := strings.Split(commands, "\n")
 		for _, command := range commandLines {

@@ -3,6 +3,7 @@
 package runner
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -16,18 +17,26 @@ const (
 	testFolder = "testdata"
 )
 
-func getRCWithTimeout(to *time.Duration) *TestRunConfig {
+func getDefaultRC() *TestRunConfig {
 	return &TestRunConfig{
-		Timeout:            to,
 		EnableAll:          true,
 		SplitCmdsByNewline: false,
 	}
 }
 
+func getContextWithCancel(to *time.Duration) (context.Context, context.CancelFunc) {
+	ctx := context.Background()
+	if to == nil {
+		return ctx, nil
+	}
+	return context.WithTimeout(ctx, *to)
+}
+
 func TestRunCommands(t *testing.T) {
 	launcher, err := getLauncher("command_prompt")
 	require.NoError(t, err)
-	out, err := runCommands(launcher, "echo \"hello\"\necho \"world\"", nil, false)
+	ctx, _ := getContextWithCancel(nil)
+	out, err := runCommands(ctx, launcher, "echo \"hello\"\necho \"world\"", false)
 	require.NoError(t, err)
 	assert.Equal(t, "hello\nworld\n", out[0].Result.Stdout)
 }
@@ -36,7 +45,8 @@ func TestRunCommands_WithTimeoutSucceed(t *testing.T) {
 	launcher, err := getLauncher("command_prompt")
 	require.NoError(t, err)
 	timeout := time.Second * 5
-	out, err := runCommands(launcher, "sleep 1\necho done", &timeout, false)
+	ctx, _ := getContextWithCancel(&timeout)
+	out, err := runCommands(ctx, launcher, "sleep 1\necho done", false)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(out))
 	assert.Equal(t, "done\n", out[0].Result.Stdout)
@@ -47,7 +57,8 @@ func TestRunCommands_WithTimeoutFail(t *testing.T) {
 	launcher, err := getLauncher("bash")
 	require.NoError(t, err)
 	timeout := time.Second * 1
-	out, err := runCommands(launcher, "sleep 6\necho done\n", &timeout, false)
+	ctx, _ := getContextWithCancel(&timeout)
+	out, err := runCommands(ctx, launcher, "sleep 6\necho done\n", false)
 	require.Error(t, err)
 	assert.Equal(t, "command timed out", err.Error())
 	assert.Equal(t, "", out[0].Result.Stdout)
@@ -57,7 +68,8 @@ func TestRunCommands_WithTimeoutFail(t *testing.T) {
 func TestRunTest(t *testing.T) {
 	atomicTest, args := getMockTest()
 	ar := Runner{}
-	out, err := ar.RunTest(atomicTest, args, getRCWithTimeout(nil))
+	ctx, _ := getContextWithCancel(nil)
+	out, err := ar.RunTest(ctx, atomicTest, args, getDefaultRC())
 	require.Nil(t, err)
 	assert.Equal(t, "command-user\n", out.AtomicTest[0].Result.Stdout)
 	assert.Equal(t, "cleanup-user\n", out.Cleanup[0].Result.Stdout)
@@ -94,7 +106,8 @@ func TestRunTest_UnSupportedExecutor(t *testing.T) {
 		},
 	}
 	ar := Runner{}
-	out, err := ar.RunTest(&atomicTest, nil, getRCWithTimeout(nil))
+	ctx, _ := getContextWithCancel(nil)
+	out, err := ar.RunTest(ctx, &atomicTest, nil, getDefaultRC())
 	require.Error(t, err)
 	require.Equal(t, 1, len(out.AtomicTest))
 	assert.Equal(t, "test\ntest\n", out.AtomicTest[0].Result.Stdout)
@@ -122,7 +135,8 @@ func TestRunTest_RunConfigSplitLines(t *testing.T) {
 		EnableTest:         true,
 		SplitCmdsByNewline: true,
 	}
-	out, err := ar.RunTest(&atomicTest, nil, rc)
+	ctx, _ := getContextWithCancel(nil)
+	out, err := ar.RunTest(ctx, &atomicTest, nil, rc)
 	require.Error(t, err)
 	require.Equal(t, 3, len(out.AtomicTest))
 	assert.Equal(t, "test1\n", out.AtomicTest[0].Result.Stdout)
@@ -149,11 +163,11 @@ func TestRunTest_RunConfigCleanup(t *testing.T) {
 	}
 	ar := Runner{}
 	rc := &TestRunConfig{
-		Timeout:            nil,
 		EnableCleanup:      true,
 		SplitCmdsByNewline: false,
 	}
-	out, err := ar.RunTest(&atomicTest, nil, rc)
+	ctx, _ := getContextWithCancel(nil)
+	out, err := ar.RunTest(ctx, &atomicTest, nil, rc)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(out.AtomicTest))
 	require.Nil(t, out.DependencyInfo)
@@ -194,12 +208,12 @@ func TestRunTest_RunConfigDependency(t *testing.T) {
 	}
 	ar := Runner{}
 	rc := &TestRunConfig{
-		Timeout:            nil,
 		EnableCheckPreReq:  true,
 		SplitCmdsByNewline: false,
 	}
+	ctx, _ := getContextWithCancel(nil)
 	// test with ony prereq enabled
-	out, err := ar.RunTest(&atomicTest, nil, rc)
+	out, err := ar.RunTest(ctx, &atomicTest, nil, rc)
 	require.Nil(t, err)
 	require.Equal(t, 0, len(out.AtomicTest))
 	require.Equal(t, 0, len(out.Cleanup))
@@ -211,7 +225,8 @@ func TestRunTest_RunConfigDependency(t *testing.T) {
 
 	// test with both prereq and getprereq enabled
 	rc.EnableDependency = true
-	out, err = ar.RunTest(&atomicTest, nil, rc)
+	ctx, _ = getContextWithCancel(nil)
+	out, err = ar.RunTest(ctx, &atomicTest, nil, rc)
 	require.Nil(t, err)
 	require.Equal(t, 0, len(out.AtomicTest))
 	require.Equal(t, 0, len(out.Cleanup))
@@ -225,7 +240,8 @@ func TestRunTest_RunConfigDependency(t *testing.T) {
 func TestRunCommands_ExitCodeSuccess(t *testing.T) {
 	launcher, err := getLauncher("sh")
 	require.NoError(t, err)
-	res, err := runCommands(launcher, "exit 0", nil, false)
+	ctx, _ := getContextWithCancel(nil)
+	res, err := runCommands(ctx, launcher, "exit 0", false)
 	require.NoError(t, err)
 	require.Len(t, res, 1)
 	assert.Equal(t, 0, res[0].Result.ExitCode)
@@ -234,7 +250,8 @@ func TestRunCommands_ExitCodeSuccess(t *testing.T) {
 func TestRunCommands_ExitCodeFail(t *testing.T) {
 	launcher, err := getLauncher("sh")
 	require.NoError(t, err)
-	res, err := runCommands(launcher, "exit 123", nil, false)
+	ctx, _ := getContextWithCancel(nil)
+	res, err := runCommands(ctx, launcher, "exit 123", false)
 	require.Error(t, err)
 	require.Len(t, res, 1)
 	assert.Equal(t, 123, res[0].Result.ExitCode)

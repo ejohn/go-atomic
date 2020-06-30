@@ -84,9 +84,11 @@ type FilterConfig struct {
 
 // TestRunConfig represents the options to control the execution of a test.
 type TestRunConfig struct {
-	Timeout *time.Duration
+	// EnableAll is equivalent to setting all the individual enable flags to true.
+	// However there is a deference in the behavior around how errors are returned
+	// when commands are empty.
+	EnableAll bool
 
-	EnableAll         bool
 	EnableCheckPreReq bool
 	EnableTest        bool
 	EnableCleanup     bool

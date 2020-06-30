@@ -4,6 +4,7 @@ display_name: TestData
 
 atomic_tests:
   - name: Test1
+    auto_generated_guid: C9085D22-9B28-4A85-9AC0-9CA1170A90DF
     description: |
       Test without executor
     supported_platforms:

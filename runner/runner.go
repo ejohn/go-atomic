@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -238,7 +239,7 @@ func buildDependency(atomicTest *art.Test, args map[string]string, atomicsFolder
 	return depInfo, nil
 }
 
-func handleDependency(bt *BuiltTest, rc *TestRunConfig) (*DependencyRunInfo, error) {
+func handleDependency(ctx context.Context, bt *BuiltTest, rc *TestRunConfig) (*DependencyRunInfo, error) {
 	depLauncher := bt.DependencyInfo.Launcher
 	dri := &DependencyRunInfo{
 		Launcher: strings.Join(depLauncher, " "),
@@ -248,7 +249,7 @@ func handleDependency(bt *BuiltTest, rc *TestRunConfig) (*DependencyRunInfo, err
 		// run prereq commands
 		var err error
 
-		depResult.PreReq, err = runCommands(depLauncher, dependency.PreReqCmds, rc.Timeout, rc.SplitCmdsByNewline)
+		depResult.PreReq, err = runCommands(ctx, depLauncher, dependency.PreReqCmds, rc.SplitCmdsByNewline)
 
 		lastExitCode := depResult.PreReq[len(depResult.PreReq)-1].Result.ExitCode
 
@@ -262,7 +263,7 @@ func handleDependency(bt *BuiltTest, rc *TestRunConfig) (*DependencyRunInfo, err
 		// Exit code can also be negative when building or running the command fails
 		var gprErr error
 		if lastExitCode > 0 && (rc.EnableDependency || rc.EnableAll) {
-			depResult.GetPreReq, gprErr = runCommands(depLauncher, dependency.GetPreReqCmds, rc.Timeout, rc.SplitCmdsByNewline)
+			depResult.GetPreReq, gprErr = runCommands(ctx, depLauncher, dependency.GetPreReqCmds, rc.SplitCmdsByNewline)
 		}
 		dri.Dependencies = append(dri.Dependencies, depResult)
 		if gprErr != nil {
@@ -294,7 +295,7 @@ func (rte RunTestError) Error() string {
 }
 
 // RunTest runs an atomic test.
-func (ar *Runner) RunTest(atomicTest *art.Test, arguments map[string]string, rc *TestRunConfig) (*TestRunInfo, error) {
+func (ar *Runner) RunTest(ctx context.Context, atomicTest *art.Test, arguments map[string]string, rc *TestRunConfig) (*TestRunInfo, error) {
 	if rc == nil {
 		return nil, fmt.Errorf("test run config cannot be nil")
 	}
@@ -324,7 +325,7 @@ func (ar *Runner) RunTest(atomicTest *art.Test, arguments map[string]string, rc 
 	if rc.EnableAll || rc.EnableDependency || rc.EnableCheckPreReq {
 		// handle dependencies if any
 		if bt.DependencyInfo != nil {
-			tri.DependencyInfo, err = handleDependency(bt, rc)
+			tri.DependencyInfo, err = handleDependency(ctx, bt, rc)
 			if err != nil {
 				return tri, err
 			}
@@ -335,7 +336,7 @@ func (ar *Runner) RunTest(atomicTest *art.Test, arguments map[string]string, rc 
 	if rc.EnableTest || rc.EnableAll {
 		var testErr error
 		// run the actual test commands
-		tri.AtomicTest, testErr = runCommands(bt.Launcher, bt.AtomicTestCommands, rc.Timeout, rc.SplitCmdsByNewline)
+		tri.AtomicTest, testErr = runCommands(ctx, bt.Launcher, bt.AtomicTestCommands, rc.SplitCmdsByNewline)
 		if testErr != nil {
 			combinedErr = multierror.Append(combinedErr, RunTestError{AtomicTestError, testErr})
 		}
@@ -343,7 +344,7 @@ func (ar *Runner) RunTest(atomicTest *art.Test, arguments map[string]string, rc 
 	// run clean up even if the test fails
 	if rc.EnableCleanup || (rc.EnableAll && bt.CleanupCommands != "") {
 		var cleanupErr error
-		tri.Cleanup, cleanupErr = runCommands(bt.Launcher, bt.CleanupCommands, rc.Timeout, rc.SplitCmdsByNewline)
+		tri.Cleanup, cleanupErr = runCommands(ctx, bt.Launcher, bt.CleanupCommands, rc.SplitCmdsByNewline)
 		if cleanupErr != nil {
 			combinedErr = multierror.Append(combinedErr, RunTestError{CleanupError, cleanupErr})
 		}
@@ -452,7 +453,8 @@ func (ar *Runner) Filter(fc *FilterConfig) []*art.Technique {
 		var atomicTests []*art.Test
 		technique := ar.techniques[wantTechnique]
 		// Apply the platform and manual test filters
-		for _, test := range technique.AtomicTests {
+		for testID := range technique.AtomicTests {
+			test := technique.AtomicTests[testID]
 			// skip manual tests if the filter does not ask to include it
 			if !fc.IncludeManual && test.Executor.Name == "manual" {
 				continue
